@@ -1,0 +1,330 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 1.1rem;
+
+  /* Fleet green — light */
+  --background: oklch(0.985 0.012 150);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.97 0.016 150);
+  --foreground: oklch(0.20 0.030 155);
+  --muted: oklch(0.955 0.018 150);
+  --muted-foreground: oklch(0.47 0.030 155);
+  --border: oklch(0.90 0.020 150);
+  --primary: oklch(0.52 0.130 152);          /* = #15803D */
+  --primary-foreground: oklch(0.99 0.010 150);
+  --accent: oklch(0.72 0.150 160);
+  --accent-foreground: oklch(0.20 0.040 155);
+  --success: oklch(0.62 0.150 145);
+  --success-foreground: oklch(0.99 0.010 150);
+  --info: oklch(0.58 0.140 240);             /* blue — "em viagem" */
+  --info-foreground: oklch(0.99 0.010 240);
+  --warning: oklch(0.79 0.155 78);
+  --warning-foreground: oklch(0.24 0.050 60);
+  --danger: oklch(0.577 0.215 27);
+  --danger-foreground: oklch(0.99 0.010 27);
+  --ring: oklch(0.52 0.130 152);
+  --shadow-color: 150 30% 25%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.155 0.018 155);
+    --surface: oklch(0.205 0.022 155);
+    --surface-2: oklch(0.250 0.025 155);
+    --foreground: oklch(0.96 0.014 150);
+    --muted: oklch(0.255 0.020 155);
+    --muted-foreground: oklch(0.72 0.025 150);
+    --border: oklch(0.32 0.025 155);
+    --primary: oklch(0.68 0.150 152);
+    --primary-foreground: oklch(0.15 0.020 155);
+    --accent: oklch(0.76 0.150 160);
+    --accent-foreground: oklch(0.15 0.030 155);
+    --success: oklch(0.70 0.150 145);
+    --success-foreground: oklch(0.13 0.020 150);
+    --info: oklch(0.70 0.130 240);
+    --info-foreground: oklch(0.13 0.020 240);
+    --warning: oklch(0.76 0.150 75);
+    --warning-foreground: oklch(0.15 0.030 60);
+    --danger: oklch(0.66 0.200 27);
+    --danger-foreground: oklch(0.12 0.020 27);
+    --ring: oklch(0.68 0.150 152);
+  }
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  /* Registered here or Tailwind never emits bg-info / text-info-foreground.
+     --info exists because the primary *is* green here, so "Disponível" (green)
+     and a green brand button would otherwise blur together (§8.1). */
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-ring: var(--ring);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    height: 100%;
+    overscroll-behavior-y: none;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100%;
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    overscroll-behavior-y: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: color-mix(in oklch, var(--color-primary) 30%, transparent);
+  }
+}
+
+@layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe-top {
+    padding-top: calc(env(safe-area-inset-top) + 0.75rem);
+  }
+  .pb-safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+  }
+  .h-safe-bottom {
+    height: env(safe-area-inset-bottom);
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .fleet-gradient {
+    background: linear-gradient(135deg, oklch(0.72 0.150 160) 0%, oklch(0.52 0.130 152) 55%, oklch(0.42 0.115 155) 100%);
+  }
+  .card-shadow {
+    box-shadow: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 8px 24px -8px hsl(var(--shadow-color) / 0.18);
+  }
+  .press-scale {
+    transition: transform 120ms ease;
+  }
+  .press-scale:active {
+    transform: scale(0.96);
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-muted);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--color-foreground) 8%, transparent), transparent);
+  animation: shimmer 1.4s infinite;
+}
+
+/* Entrance animations, done in CSS rather than with framer-motion: a large JS
+   dependency on the critical path of a phone app, for work the compositor does
+   for free. Stagger a list by setting animation-delay inline. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-rise-in {
+  animation: rise-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-fade-in {
+  animation: fade-in 200ms ease both;
+}
+
+.animate-drop-in {
+  animation: drop-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise-in,
+  .animate-fade-in,
+  .animate-drop-in,
+  .skeleton::after {
+    animation: none;
+  }
+
+  .press-scale {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Print / Save as PDF (§6.5).
+   No PDF library: window.print() renders the real DOM, so a report always
+   matches what is on screen, and the browser dialog offers Save as PDF on
+   desktop, on Android Chrome and on iOS (Share, Print, Save to Files).
+   --------------------------------------------------------------------------- */
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  /* Chrome drops backgrounds by default; force the few that carry meaning
+     (the outlier highlight, the state badges). */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html,
+  body {
+    background: #fff;
+    color: #000;
+    font-size: 11pt;
+  }
+
+  /* Chrome and app furniture never belong on paper. */
+  .no-print,
+  nav,
+  header.app-bar,
+  .bottom-nav,
+  button,
+  .filters,
+  .toast {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* The phone layout is a narrow centred column; on A4 that would waste two
+     thirds of the page. */
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* Flatten the mobile card look into something that reads as a document. */
+  .card,
+  .card-shadow {
+    box-shadow: none !important;
+    border: 1px solid #ccc;
+    border-radius: 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    border: 1px solid #999;
+    padding: 4pt 6pt;
+    text-align: left;
+  }
+
+  /* Repeat the header on every page, keep the totals row with the table, and
+     never split a row across pages. */
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr,
+  .avoid-break {
+    break-inside: avoid;
+  }
+
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  a[href]::after {
+    content: "";
+  }
+}

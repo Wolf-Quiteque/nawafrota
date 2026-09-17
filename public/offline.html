@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Sem ligação · Nawa-frotas</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f3faf5;
+        --fg: #12271c;
+        --muted: #52705f;
+        --primary: #15803d;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1f17;
+          --fg: #e8f5ec;
+          --muted: #93ad9e;
+          --primary: #2fa25c;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        padding: 2rem 1.5rem;
+        text-align: center;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      }
+      .mark {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 4rem;
+        height: 4rem;
+        border-radius: 1.1rem;
+        background: linear-gradient(135deg, #3fb877 0%, #15803d 55%, #0f5f2d 100%);
+        color: #fff;
+      }
+      h1 {
+        margin: 0.5rem 0 0;
+        font-size: 1.25rem;
+        font-weight: 800;
+      }
+      p {
+        margin: 0;
+        max-width: 22rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+      button {
+        margin-top: 0.75rem;
+        padding: 0.7rem 1.4rem;
+        border: 0;
+        border-radius: 1rem;
+        background: var(--primary);
+        color: #fff;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mark">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 6v6M15 6v6M2 12h19.6M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3" />
+        <circle cx="7" cy="18" r="2" />
+        <path d="M9 18h5" />
+        <circle cx="16" cy="18" r="2" />
+      </svg>
+    </div>
+    <h1>Sem ligação</h1>
+    <p>
+      O Nawa-frotas precisa de internet para mostrar a frota atualizada. Os abastecimentos
+      registados sem rede ficam guardados e são enviados assim que houver ligação.
+    </p>
+    <button onclick="location.reload()">Tentar novamente</button>
+  </body>
+</html>
