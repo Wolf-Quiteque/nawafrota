@@ -24,6 +24,35 @@ test('parseAmount accepts the comma decimal an Angolan keyboard produces', () =>
   assert.equal(parseAmount('abc'), null);
 });
 
+test('parseAmount reads the thousands separator the app itself prints', () => {
+  // formatKz renders 63000 as "63.000 Kz", so "99.000" typed back in is
+  // ninety-nine thousand kwanza — not ninety-nine. Reading it as a decimal
+  // point turned a 235-litre fill into 0,24 L.
+  assert.equal(parseAmount('99.000'), 99000);
+  assert.equal(parseAmount('63.000'), 63000);
+  assert.equal(parseAmount('1.234.567'), 1234567);
+});
+
+test('parseAmount keeps a comma decimal alongside grouped thousands', () => {
+  assert.equal(parseAmount('1.234,56'), 1234.56);
+});
+
+test('parseAmount still reads a lone dot as a decimal point', () => {
+  // Only groups of exactly three digits are grouping, so a price pasted from
+  // a machine that writes "420.50" is not read as forty-two thousand.
+  assert.equal(parseAmount('420.50'), 420.5);
+  assert.equal(parseAmount('1.5'), 1.5);
+});
+
+test('parseAmount ignores the non-breaking space Intl groups with', () => {
+  assert.equal(parseAmount('12 000'), 12000);
+});
+
+test('the amount paid, written the Angolan way, gives the right litres', () => {
+  const r = deriveFuelAmounts({ litres: '', pricePerLitre: '420', totalCost: '99.000' }, 'totalCost');
+  assert.equal(r.litres, 235.71);
+});
+
 test('typing litres with a price in place derives the total', () => {
   const result = deriveFuelAmounts({ litres: '120', pricePerLitre: '420', totalCost: '' }, 'litres');
   assert.equal(result.totalCost, 50400);
@@ -45,7 +74,9 @@ test('typing a total with only a price derives the litres', () => {
 });
 
 test('derived amounts round to two decimals', () => {
-  const result = deriveFuelAmounts({ litres: '33.333', pricePerLitre: '420', totalCost: '' }, 'litres');
+  // '33,333' not '33.333': a dot groups thousands here, so the decimal mark is
+  // the one an Angolan keyboard actually produces.
+  const result = deriveFuelAmounts({ litres: '33,333', pricePerLitre: '420', totalCost: '' }, 'litres');
   assert.equal(result.totalCost, 13999.86);
 
   const price = deriveFuelAmounts({ litres: '3', pricePerLitre: '', totalCost: '1000' }, 'totalCost');
