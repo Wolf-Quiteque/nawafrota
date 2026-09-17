@@ -96,19 +96,25 @@ export async function POST(request) {
   if (price !== null) row.price_per_litre_kz = price;
   if (total !== null) row.total_cost_kz = total;
 
-  // total_cost_kz is NOT NULL with no default, and the trigger only fills it
-  // when a price exists. If neither is available the insert would fail with a
-  // constraint error that means nothing to an agent.
-  if (total === null && price === null) {
+  // litres and total_cost_kz are both NOT NULL with no default, and the trigger
+  // can only fill the missing one when a price exists. Without it the insert
+  // fails on a constraint whose message means nothing to an agent, so check
+  // first and say which field to fill in.
+  const needsPrice = price === null && (total === null || row.litres === null);
+  if (needsPrice) {
     const { data: configured } = await supabase.rpc('fuel_price_at', {
       p_at: filledAt,
       p_fuel_type: row.fuel_type,
       p_company_id: bus.company_id,
     });
     if (configured === null || configured === undefined) {
-      return badRequest('Indique o preço por litro ou o total — não há preço configurado.', {
-        price_per_litre_kz: 'Obrigatório.',
-      });
+      return row.litres === null
+        ? badRequest('Indique os litros — não há preço configurado para os calcular a partir do total.', {
+            litres: 'Obrigatório.',
+          })
+        : badRequest('Indique o preço por litro ou o total — não há preço configurado.', {
+            price_per_litre_kz: 'Obrigatório.',
+          });
     }
   }
 

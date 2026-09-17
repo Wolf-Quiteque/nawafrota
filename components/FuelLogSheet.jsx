@@ -209,13 +209,13 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
+          {/* Not `required`: typing the total instead fills this in. */}
           <Field label="Litros" error={errors.litres}>
             <Input
               inputMode="decimal"
               placeholder="0,0"
               value={form.litres}
               onChange={(e) => setAmount('litres', e.target.value)}
-              required
             />
           </Field>
           <Field label="Preço por litro (Kz)" error={errors.price_per_litre_kz}>
@@ -229,11 +229,11 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
         </div>
 
         <Field
-          label="Total (Kz)"
+          label="Total pago (Kz)"
           hint={
             parseAmount(form.totalCost)
               ? formatKz(parseAmount(form.totalCost))
-              : 'Deixe em branco para calcular a partir do preço configurado.'
+              : 'Escreva os litros ou o total — o outro é calculado.'
           }
           error={errors.total_cost_kz}
         >

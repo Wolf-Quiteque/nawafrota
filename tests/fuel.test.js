@@ -168,3 +168,30 @@ test('validateFuelEntry accepts a fill with no price and no total', () => {
   const { valid } = validateFuelEntry({ bus_id: 'x', litres: 120 });
   assert.equal(valid, true);
 });
+
+test('validateFuelEntry accepts the amount paid instead of litres', () => {
+  // What the pump shows is the price, so recording only that is a complete
+  // entry too — the trigger works back to litres.
+  assert.equal(validateFuelEntry({ bus_id: 'x', total_cost_kz: 50000 }).valid, true);
+});
+
+test('validateFuelEntry rejects an entry with neither litres nor a total', () => {
+  const { valid, errors } = validateFuelEntry({ bus_id: 'x' });
+  assert.equal(valid, false);
+  assert.equal(errors.litres, 'Indique os litros ou o total pago.');
+});
+
+test('validateFuelEntry rejects a zero total standing in for litres', () => {
+  // Deriving from it would write litres of 0, which the litres > 0 check
+  // rejects with a message no agent can act on.
+  const { valid, errors } = validateFuelEntry({ bus_id: 'x', total_cost_kz: 0 });
+  assert.equal(valid, false);
+  assert.equal(errors.total_cost_kz, 'O total tem de ser maior que zero.');
+});
+
+test('deriveFuelAmounts turns the amount paid into litres', () => {
+  // The form opens with the configured price already filled in, so typing the
+  // total is all it takes.
+  const r = deriveFuelAmounts({ litres: '', pricePerLitre: '420', totalCost: '63000' }, 'totalCost');
+  assert.equal(r.litres, 150);
+});
