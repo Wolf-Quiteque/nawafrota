@@ -36,7 +36,19 @@ const EMPTY = {
  * every number is one tap away, any one of litres / price / total can be the
  * one that is typed, and nothing here blocks a save that a receipt can justify.
  */
-export default function FuelLogSheet({ open, onClose, buses, drivers, currentPrice, defaultBusId, onSaved }) {
+export default function FuelLogSheet({
+  open,
+  onClose,
+  buses,
+  drivers,
+  currentPrice,
+  defaultBusId,
+  onSaved,
+  // A log to correct rather than a new fill. Editing goes straight to the
+  // server: an offline edit cannot be queued behind an entry that may not
+  // exist there yet, so it fails honestly instead.
+  editing = null,
+}) {
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -63,6 +75,28 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
   useEffect(() => {
     if (!open) return;
     setErrors({});
+
+    if (editing) {
+      setReceipt(editing.receipt_url ? { path: editing.receipt_url, name: 'Recibo anexado' } : null);
+      // Every amount on a saved row was recorded, not derived, so editing one
+      // of them must behave like a figure somebody typed.
+      setTypedFields(['litres', 'pricePerLitre', 'totalCost']);
+      setForm({
+        bus_id: editing.bus_id || '',
+        litres: editing.litres != null ? String(editing.litres).replace('.', ',') : '',
+        pricePerLitre:
+          editing.price_per_litre_kz != null ? String(editing.price_per_litre_kz).replace('.', ',') : '',
+        totalCost: editing.total_cost_kz != null ? String(editing.total_cost_kz).replace('.', ',') : '',
+        odometer_km: editing.odometer_km ?? '',
+        station: editing.station || '',
+        driver_id: editing.driver_id || '',
+        notes: editing.notes || '',
+        is_full_tank: editing.is_full_tank !== false,
+        filled_at: toLocalInputValue(new Date(editing.filled_at)),
+      });
+      return;
+    }
+
     setReceipt(null);
     // The prefilled price is a default, not something anybody typed.
     setTypedFields([]);
@@ -74,11 +108,13 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
       pricePerLitre: currentPrice ? String(currentPrice) : '',
       filled_at: toLocalInputValue(new Date()),
     });
-  }, [open, defaultBusId, currentPrice]);
+  }, [open, defaultBusId, currentPrice, editing]);
 
   // Prefill the odometer with this bus's last reading as soon as one is picked.
+  // Never while editing: filling a blank the agent left blank would quietly
+  // write a reading nobody took.
   useEffect(() => {
-    if (!selectedBus) return;
+    if (!selectedBus || editing) return;
     setForm((f) => ({
       ...f,
       odometer_km: f.odometer_km || (selectedBus.last_odometer_km ?? ''),
@@ -160,8 +196,8 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
     setSaving(true);
 
     try {
-      const res = await fetch('/api/fuel', {
-        method: 'POST',
+      const res = await fetch(editing ? `/api/fuel/${editing.id}` : '/api/fuel', {
+        method: editing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(entry),
       });
@@ -169,6 +205,13 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
       if (!res.ok) {
         if (payload.fields) setErrors(payload.fields);
         throw new Error(payload.error || 'Não foi possível guardar. Tente novamente.');
+      }
+
+      if (editing) {
+        toast('Abastecimento actualizado.', 'success');
+        onSaved?.(payload.fuelLog);
+        onClose?.();
+        return;
       }
 
       // The consumption since the previous fill, when it is derivable — the
@@ -185,7 +228,19 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
     } catch (err) {
       // A filling station often has no signal (§8.2). Rather than losing the
       // entry, hold it in IndexedDB and flush it when the phone is back online.
+      // An edit is never queued: the queue replays as a new fill, so a failed
+      // correction would come back as a duplicate of the row it meant to fix.
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (editing) {
+        toast(
+          offline || err.message === 'Failed to fetch'
+            ? 'Sem ligação. A alteração não foi guardada — tente de novo com rede.'
+            : err.message,
+          'error'
+        );
+        setSaving(false);
+        return;
+      }
       if (offline || err.message === 'Failed to fetch') {
         try {
           await queueFuelEntry(entry);
@@ -205,7 +260,7 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Registar abastecimento">
+    <Sheet open={open} onClose={onClose} title={editing ? 'Corrigir abastecimento' : 'Registar abastecimento'}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3 pb-8">
         <Field label="Autocarro" error={errors.bus_id}>
           <Select
@@ -221,6 +276,24 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
               </option>
             ))}
           </Select>
+        </Field>
+
+        {/* First, because it is what the pump shows and what the agent knows. */}
+        <Field
+          label="Total pago (Kz)"
+          hint={
+            parseAmount(form.totalCost)
+              ? formatKz(parseAmount(form.totalCost))
+              : 'Escreva o total — os litros são calculados.'
+          }
+          error={errors.total_cost_kz}
+        >
+          <Input
+            inputMode="decimal"
+            placeholder="0"
+            value={form.totalCost}
+            onChange={(e) => setAmount('totalCost', e.target.value)}
+          />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
@@ -242,23 +315,6 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
             />
           </Field>
         </div>
-
-        <Field
-          label="Total pago (Kz)"
-          hint={
-            parseAmount(form.totalCost)
-              ? formatKz(parseAmount(form.totalCost))
-              : 'Escreva os litros ou o total — o outro é calculado.'
-          }
-          error={errors.total_cost_kz}
-        >
-          <Input
-            inputMode="decimal"
-            placeholder="0"
-            value={form.totalCost}
-            onChange={(e) => setAmount('totalCost', e.target.value)}
-          />
-        </Field>
 
         <Field
           label="Quilometragem"
@@ -356,7 +412,7 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
         ) : null}
 
         <Button type="submit" size="lg" className="mt-1 w-full" loading={saving}>
-          Guardar abastecimento
+          {editing ? 'Guardar alterações' : 'Guardar abastecimento'}
         </Button>
       </form>
     </Sheet>

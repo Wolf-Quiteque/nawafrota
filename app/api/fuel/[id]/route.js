@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireStaff, requireAdmin, companyScope } from '@/lib/auth';
+import { requireStaff, companyScope } from '@/lib/auth';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { denied, badRequest, friendlyDbError } from '@/lib/api';
 import { parseAmount, validateFuelEntry } from '@/lib/fuel';
@@ -7,7 +7,7 @@ import { parseAmount, validateFuelEntry } from '@/lib/fuel';
 async function loadLog(supabase, id) {
   const { data } = await supabase
     .from('bus_fuel_logs')
-    .select('id, bus_id, company_id, receipt_url, bus:buses!inner(company_id)')
+    .select('id, bus_id, company_id, receipt_url, recorded_by, bus:buses!inner(company_id)')
     .eq('id', id)
     .maybeSingle();
   return data;
@@ -62,18 +62,36 @@ export async function PATCH(request, { params }) {
 }
 
 /**
- * Admin only (§5). A fuel log is tied to a real receipt and is financial
- * evidence, so deleting one is a genuinely destructive act reserved for
- * correcting a duplicate entry — never routine cleanup (§11).
+ * A fuel log is tied to a real receipt and is financial evidence, so deleting
+ * one stays a destructive act for correcting a mistaken or duplicated entry,
+ * never routine cleanup (§11).
+ *
+ * Admins may remove any of them. An agent may remove one they recorded
+ * themselves: the person who mistyped a fill is the one who notices, and
+ * making them find an admin to undo their own mistake means the wrong number
+ * sits in the fuel figures until someone gets round to it. Someone else's row
+ * is still not theirs to delete.
  */
 export async function DELETE(request, { params }) {
-  const auth = await requireAdmin();
+  const auth = await requireStaff();
   if (auth.error) return denied(auth);
 
   const { id } = await params;
   const supabase = createSupabaseAdminClient();
   const log = await loadLog(supabase, id);
   if (!log) return NextResponse.json({ error: 'Abastecimento não encontrado.' }, { status: 404 });
+
+  const scope = companyScope(auth.profile);
+  if (scope && log.bus.company_id !== scope) {
+    return NextResponse.json({ error: 'Sem acesso a este registo.' }, { status: 403 });
+  }
+
+  if (auth.profile.role !== 'admin' && log.recorded_by !== auth.user.id) {
+    return NextResponse.json(
+      { error: 'Só pode apagar abastecimentos que registou. Peça a um administrador.' },
+      { status: 403 }
+    );
+  }
 
   const { error } = await supabase.from('bus_fuel_logs').delete().eq('id', id);
   if (error) return NextResponse.json({ error: friendlyDbError(error) }, { status: 400 });

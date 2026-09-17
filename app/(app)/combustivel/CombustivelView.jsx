@@ -3,27 +3,53 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Fuel, Plus, Search, CloudOff, Paperclip } from 'lucide-react';
+import { Fuel, Plus, Search, CloudOff, Paperclip, Pencil, Trash2 } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import FuelLogSheet from '@/components/FuelLogSheet';
 import { useToast } from '@/components/ui/Toast';
 import { useDebounce } from '@/lib/useDebounce';
 import { formatKz, formatKzPrecise, formatLitres, formatDateTime, formatKm } from '@/lib/format';
 import { pendingFuelEntries } from '@/lib/offline-queue';
 
-export default function CombustivelView({ initialLogs, buses, drivers, currentPrice }) {
+export default function CombustivelView({ initialLogs, buses, drivers, currentPrice, viewer }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [busId, setBusId] = useState('');
   const [pending, setPending] = useState([]);
+  // The row being corrected, and the one awaiting a delete confirmation.
+  const [editing, setEditing] = useState(null);
+  const [confirming, setConfirming] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const debounced = useDebounce(search, 200);
   const router = useRouter();
   const toast = useToast();
+
+  // Mirrors the rule the API enforces (§11), so the button is only offered
+  // where it will actually work.
+  const canDelete = (log) => viewer?.isAdmin || log.recorded_by === viewer?.id;
+
+  const removeLog = async () => {
+    if (!confirming) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/fuel/${confirming.id}`, { method: 'DELETE' });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || 'Não foi possível apagar.');
+      toast('Abastecimento apagado.', 'success');
+      setConfirming(null);
+      router.refresh();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Entries made with no signal, still waiting to be sent (§8.2). Shown as
   // such so nobody enters the same fill twice thinking the first was lost.
@@ -118,10 +144,13 @@ export default function CombustivelView({ initialLogs, buses, drivers, currentPr
           <ul className="mt-3 flex flex-col gap-2">
             {visible.map((log, i) => (
               <li key={log.id}>
+                <div
+                  style={{ animationDelay: `${Math.min(i, 10) * 25}ms` }}
+                  className="animate-rise-in rounded-2xl border border-border bg-surface"
+                >
                 <Link
                   href={`/frota/${log.bus_id}`}
-                  style={{ animationDelay: `${Math.min(i, 10) * 25}ms` }}
-                  className="animate-rise-in press-scale block rounded-2xl border border-border bg-surface p-4"
+                  className="press-scale block p-4 pb-2"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -154,6 +183,28 @@ export default function CombustivelView({ initialLogs, buses, drivers, currentPr
                     ) : null}
                   </div>
                 </Link>
+
+                <div className="flex items-center justify-end gap-1 px-2 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditing(log)}
+                    className="press-scale flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <Pencil size={13} />
+                    Corrigir
+                  </button>
+                  {canDelete(log) ? (
+                    <button
+                      type="button"
+                      onClick={() => setConfirming(log)}
+                      className="press-scale flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-danger hover:bg-danger/10"
+                    >
+                      <Trash2 size={13} />
+                      Apagar
+                    </button>
+                  ) : null}
+                </div>
+                </div>
               </li>
             ))}
           </ul>
@@ -190,6 +241,32 @@ export default function CombustivelView({ initialLogs, buses, drivers, currentPr
           else pendingFuelEntries().then(setPending);
           if (!saved) toast('Guardado localmente.', 'info');
         }}
+      />
+
+      <FuelLogSheet
+        open={Boolean(editing)}
+        onClose={() => setEditing(null)}
+        buses={buses}
+        drivers={drivers}
+        currentPrice={currentPrice}
+        editing={editing}
+        onSaved={() => router.refresh()}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirming)}
+        onCancel={() => setConfirming(null)}
+        onConfirm={removeLog}
+        busy={deleting}
+        title="Apagar este abastecimento?"
+        confirmLabel="Apagar"
+        description={
+          confirming
+            ? `${confirming.bus?.license_plate} · ${formatKz(confirming.total_cost_kz)} · ${formatDateTime(
+                confirming.filled_at
+              )}. O recibo anexado é apagado com ele e não pode ser recuperado.`
+            : ''
+        }
       />
     </div>
   );
