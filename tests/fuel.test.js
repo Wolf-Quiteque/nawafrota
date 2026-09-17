@@ -73,6 +73,52 @@ test('typing a total with only a price derives the litres', () => {
   assert.equal(result.litres, 50);
 });
 
+test('a derived litres never turns into an off-rate price', () => {
+  // The reported bug: onChange fires per keystroke, so "9" derived litres of
+  // 0,02 and the next keystroke read that back as litres the agent had typed,
+  // driving the price to 4.950.000 Kz. Only a typed litres may move the price.
+  const result = deriveFuelAmounts(
+    { litres: '0,02', pricePerLitre: '420', totalCost: '99000' },
+    'totalCost',
+    ['totalCost']
+  );
+  assert.equal(result.pricePerLitre, 420, 'the prefilled price must not move');
+  assert.equal(result.litres, 235.71);
+});
+
+test('an off-rate total still moves the price when litres were typed', () => {
+  const result = deriveFuelAmounts(
+    { litres: '120', pricePerLitre: '420', totalCost: '51000' },
+    'totalCost',
+    ['litres', 'totalCost']
+  );
+  assert.equal(result.pricePerLitre, 425);
+  assert.equal(result.totalCost, 51000);
+});
+
+test('correcting the price after typing a total keeps the amount paid', () => {
+  // Re-deriving the total here would silently replace what they actually paid.
+  const result = deriveFuelAmounts(
+    { litres: '235,71', pricePerLitre: '400', totalCost: '99000' },
+    'pricePerLitre',
+    ['totalCost']
+  );
+  assert.equal(result.totalCost, 99000, 'the typed total survives');
+  assert.equal(result.litres, 247.5);
+});
+
+test('typing a total digit by digit only ever moves the litres', () => {
+  // Replays the keystrokes rather than trusting a single call.
+  let typed = [];
+  let price = '420';
+  for (const value of ['9', '99', '990', '9900', '99000']) {
+    typed = typed.includes('totalCost') ? typed : [...typed, 'totalCost'];
+    const d = deriveFuelAmounts({ litres: '', pricePerLitre: price, totalCost: value }, 'totalCost', typed);
+    price = String(d.pricePerLitre);
+  }
+  assert.equal(price, '420');
+});
+
 test('derived amounts round to two decimals', () => {
   // '33,333' not '33.333': a dot groups thousands here, so the decimal mark is
   // the one an Angolan keyboard actually produces.

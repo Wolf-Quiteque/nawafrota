@@ -42,6 +42,9 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
   const [saving, setSaving] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [uploading, setUploading] = useState(false);
+  // Which of litres / price / total the person actually typed, as opposed to
+  // what the form worked out for them. deriveFuelAmounts needs the difference.
+  const [typedFields, setTypedFields] = useState([]);
   const toast = useToast();
 
   // Recent first: the bus somebody filled yesterday is overwhelmingly the one
@@ -61,6 +64,8 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
     if (!open) return;
     setErrors({});
     setReceipt(null);
+    // The prefilled price is a default, not something anybody typed.
+    setTypedFields([]);
     setForm({
       ...EMPTY,
       bus_id: defaultBusId || '',
@@ -81,11 +86,21 @@ export default function FuelLogSheet({ open, onClose, buses, drivers, currentPri
   }, [selectedBus]);
 
   const setAmount = (field, value) => {
+    // Clearing a field takes back the claim that it was typed, so the form can
+    // go back to deriving it.
+    const typedNow = value.trim()
+      ? typedFields.includes(field)
+        ? typedFields
+        : [...typedFields, field]
+      : typedFields.filter((f) => f !== field);
+    setTypedFields(typedNow);
+
     setForm((f) => {
       const next = { ...f, [field]: value };
       const derived = deriveFuelAmounts(
         { litres: next.litres, pricePerLitre: next.pricePerLitre, totalCost: next.totalCost },
-        field
+        field,
+        typedNow
       );
       return {
         ...next,
