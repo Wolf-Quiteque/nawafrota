@@ -34,11 +34,12 @@ export async function PATCH(request, { params }) {
   const body = await request.json().catch(() => ({}));
   const supabase = createSupabaseAdminClient();
 
-  const { data: bus } = await supabase
+  const { data: bus, error: busError } = await supabase
     .from('buses')
-    .select('id, company_id, capacity, license_plate, is_active')
+    .select('id, company_id, capacity, license_plate, make, model, year, amenities, is_active')
     .eq('id', id)
     .maybeSingle();
+  if (busError) return serverError(busError);
   if (!bus) return NextResponse.json({ error: 'Autocarro não encontrado.' }, { status: 404 });
 
   const scope = companyScope(auth.profile);
@@ -48,19 +49,38 @@ export async function PATCH(request, { params }) {
 
   const patch = {};
   if (body.license_plate !== undefined) {
-    patch.license_plate = String(body.license_plate).trim().toUpperCase();
-    if (!patch.license_plate) return badRequest('Indique a matrícula.', { license_plate: 'Obrigatório.' });
+    const plate = String(body.license_plate).trim().toUpperCase();
+    if (!plate) return badRequest('Indique a matrícula.', { license_plate: 'Obrigatório.' });
+    if (plate !== bus.license_plate) patch.license_plate = plate;
   }
-  if (body.make !== undefined) patch.make = body.make?.trim() || null;
-  if (body.model !== undefined) patch.model = body.model?.trim() || null;
-  if (body.year !== undefined) patch.year = body.year ? Number(body.year) : null;
+  if (body.make !== undefined) {
+    const make = String(body.make || '').trim();
+    if (!make) return badRequest('Indique a marca.', { make: 'Obrigatório.' });
+    if (make !== bus.make) patch.make = make;
+  }
+  if (body.model !== undefined) {
+    const model = String(body.model || '').trim();
+    if (!model) return badRequest('Indique o modelo.', { model: 'Obrigatório.' });
+    if (model !== bus.model) patch.model = model;
+  }
+  if (body.year !== undefined) {
+    const year = body.year === null || body.year === '' ? null : Number(body.year);
+    if (year !== null && (!Number.isInteger(year) || year < 1950 || year > 2100)) {
+      return badRequest('Indique um ano válido.', { year: 'Ano inválido.' });
+    }
+    if (year !== bus.year) patch.year = year;
+  }
   if (body.amenities !== undefined) {
-    patch.amenities = Array.isArray(body.amenities) ? body.amenities : null;
+    const amenities = Array.isArray(body.amenities) ? body.amenities : null;
+    if (JSON.stringify(amenities) !== JSON.stringify(bus.amenities)) patch.amenities = amenities;
   }
 
   // §2.1 — the guard that protects live ticket sales. Capacity may never drop
   // below a seat already sold on a future trip, and the refusal has to name the
   // seat that blocks it.
+  if (body.capacity !== undefined && (!Number.isInteger(Number(body.capacity)) || Number(body.capacity) < 1)) {
+    return badRequest('Indique uma lotação válida.', { capacity: 'Lotação inválida.' });
+  }
   if (body.capacity !== undefined && Number(body.capacity) !== bus.capacity) {
     const maxSoldSeat = await maxSoldSeatForBus(id);
     const check = checkCapacityChange(body.capacity, maxSoldSeat);

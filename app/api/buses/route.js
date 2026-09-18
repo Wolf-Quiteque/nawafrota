@@ -23,11 +23,15 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   const plate = String(body.license_plate || '').trim().toUpperCase();
   const capacity = Number(body.capacity);
+  const make = String(body.make || '').trim();
+  const model = String(body.model || '').trim();
 
   const fields = {};
   if (!plate) fields.license_plate = 'Indique a matrícula.';
-  if (!Number.isFinite(capacity) || capacity < 1) fields.capacity = 'Indique a lotação.';
-  if (body.year && (Number(body.year) < 1950 || Number(body.year) > 2100)) {
+  if (!make) fields.make = 'Indique a marca.';
+  if (!model) fields.model = 'Indique o modelo.';
+  if (!Number.isInteger(capacity) || capacity < 1) fields.capacity = 'Indique a lotação.';
+  if (body.year && (!Number.isInteger(Number(body.year)) || Number(body.year) < 1950 || Number(body.year) > 2100)) {
     fields.year = 'Ano inválido.';
   }
   if (Object.keys(fields).length) return badRequest('Verifique os campos assinalados.', fields);
@@ -57,8 +61,8 @@ export async function POST(request) {
     .insert({
       company_id: companyId,
       license_plate: plate,
-      make: body.make?.trim() || null,
-      model: body.model?.trim() || null,
+      make,
+      model,
       year: body.year ? Number(body.year) : null,
       capacity,
       amenities: Array.isArray(body.amenities) ? body.amenities : null,

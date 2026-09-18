@@ -5,14 +5,7 @@ import { getBusStatus, maxSoldSeatForBus, getCompany, listDrivers, fuelPriceAt }
 import BusDetailView from './BusDetailView';
 
 export const dynamic = 'force-dynamic';
-
-export async function generateMetadata({ params }) {
-  const { busId } = await params;
-  const auth = await requireStaff();
-  if (auth.error) return { title: 'Autocarro' };
-  const bus = await getBusStatus(busId, companyScope(auth.profile));
-  return { title: bus?.license_plate || 'Autocarro' };
-}
+export const metadata = { title: 'Autocarro' };
 
 export default async function BusDetailPage({ params }) {
   const { busId } = await params;

@@ -35,6 +35,20 @@ export default function BusForm({ bus, maxSoldSeat = null, mode = 'create' }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const fields = {};
+    if (!form.license_plate.trim()) fields.license_plate = 'Indique a matrícula.';
+    if (!form.make.trim()) fields.make = 'Indique a marca.';
+    if (!form.model.trim()) fields.model = 'Indique o modelo.';
+    if (!Number.isInteger(Number(form.capacity)) || Number(form.capacity) < 1) {
+      fields.capacity = 'Indique uma lotação válida.';
+    }
+    if (form.year !== '' && (!Number.isInteger(Number(form.year)) || Number(form.year) < 1950 || Number(form.year) > 2100)) {
+      fields.year = 'Indique um ano válido.';
+    }
+    if (Object.keys(fields).length) {
+      setErrors(fields);
+      return;
+    }
     setErrors({});
     setSaving(true);
 
@@ -51,7 +65,7 @@ export default function BusForm({ bus, maxSoldSeat = null, mode = 'create' }) {
           capacity: Number(form.capacity),
         }),
       });
-      const payload = await res.json();
+      const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (payload.fields) setErrors(payload.fields);
         throw new Error(payload.error || 'Não foi possível guardar. Tente novamente.');
@@ -85,15 +99,17 @@ export default function BusForm({ bus, maxSoldSeat = null, mode = 'create' }) {
         <Field label="Marca" error={errors.make}>
           <Input
             placeholder="HIGER"
-            value={form.make}
-            onChange={(e) => setForm((f) => ({ ...f, make: e.target.value }))}
+          value={form.make}
+          onChange={(e) => setForm((f) => ({ ...f, make: e.target.value }))}
+          required
           />
         </Field>
         <Field label="Modelo" error={errors.model}>
           <Input
             placeholder="KLQ6122K"
-            value={form.model}
-            onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
+          value={form.model}
+          onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
+          required
           />
         </Field>
       </div>
@@ -105,6 +121,8 @@ export default function BusForm({ bus, maxSoldSeat = null, mode = 'create' }) {
             placeholder="2024"
             value={form.year}
             onChange={(e) => setForm((f) => ({ ...f, year: e.target.value }))}
+            min="1950"
+            max="2100"
           />
         </Field>
         <Field
@@ -121,6 +139,8 @@ export default function BusForm({ bus, maxSoldSeat = null, mode = 'create' }) {
             placeholder="51"
             value={form.capacity}
             onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))}
+            min="1"
+            step="1"
             required
           />
         </Field>

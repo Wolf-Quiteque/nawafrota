@@ -6,26 +6,18 @@ import PageHeader from '@/components/PageHeader';
 import BusForm from '@/components/BusForm';
 
 export const dynamic = 'force-dynamic';
-
-export async function generateMetadata({ params }) {
-  const { busId } = await params;
-  const auth = await requireStaff();
-  if (auth.error) return { title: 'Editar autocarro' };
-  const bus = await getBusStatus(busId, companyScope(auth.profile));
-  return { title: bus ? `Editar ${bus.license_plate}` : 'Editar autocarro' };
-}
+export const metadata = { title: 'Editar autocarro' };
 
 export default async function EditBusPage({ params }) {
   const { busId } = await params;
   const auth = await requireStaff();
   if (auth.error) redirect('/login');
 
-  const bus = await getBusStatus(busId, companyScope(auth.profile));
+  const [bus, maxSoldSeat] = await Promise.all([
+    getBusStatus(busId, companyScope(auth.profile)),
+    maxSoldSeatForBus(busId),
+  ]);
   if (!bus) notFound();
-
-  // Read here rather than in the form: the guard has to be enforced against a
-  // number the browser cannot influence (§2.1).
-  const maxSoldSeat = await maxSoldSeatForBus(busId);
 
   return (
     <div>
