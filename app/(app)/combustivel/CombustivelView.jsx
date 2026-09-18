@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Fuel, Plus, Search, CloudOff, Paperclip, Pencil, Trash2 } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
@@ -18,6 +17,7 @@ import { formatKz, formatKzPrecise, formatLitres, formatDateTime, formatKm } fro
 import { pendingFuelEntries } from '@/lib/offline-queue';
 
 export default function CombustivelView({ initialLogs, buses, drivers, currentPrice, viewer }) {
+  const [logs, setLogs] = useState(initialLogs);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [busId, setBusId] = useState('');
@@ -27,8 +27,20 @@ export default function CombustivelView({ initialLogs, buses, drivers, currentPr
   const [confirming, setConfirming] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const debounced = useDebounce(search, 200);
-  const router = useRouter();
   const toast = useToast();
+
+  useEffect(() => setLogs(initialLogs), [initialLogs]);
+
+  const upsertLog = (saved) => {
+    if (!saved) return;
+    setLogs((current) => {
+      const previous = current.find((log) => log.id === saved.id);
+      const merged = previous ? { ...previous, ...saved } : saved;
+      return [merged, ...current.filter((log) => log.id !== saved.id)].sort(
+        (a, b) => new Date(b.filled_at).getTime() - new Date(a.filled_at).getTime()
+      );
+    });
+  };
 
   // Mirrors the rule the API enforces (§11), so the button is only offered
   // where it will actually work.
@@ -42,8 +54,8 @@ export default function CombustivelView({ initialLogs, buses, drivers, currentPr
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload.error || 'Não foi possível apagar.');
       toast('Abastecimento apagado.', 'success');
+      setLogs((current) => current.filter((log) => log.id !== confirming.id));
       setConfirming(null);
-      router.refresh();
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -61,18 +73,18 @@ export default function CombustivelView({ initialLogs, buses, drivers, currentPr
     return () => {
       alive = false;
     };
-  }, [initialLogs]);
+  }, []);
 
   const visible = useMemo(() => {
     const needle = debounced.trim().toLowerCase();
-    return initialLogs.filter((log) => {
+    return logs.filter((log) => {
       if (busId && log.bus_id !== busId) return false;
       if (!needle) return true;
       return [log.bus?.license_plate, log.station]
         .filter(Boolean)
         .some((f) => String(f).toLowerCase().includes(needle));
     });
-  }, [initialLogs, debounced, busId]);
+  }, [logs, debounced, busId]);
 
   const totals = useMemo(
     () =>
@@ -237,7 +249,7 @@ export default function CombustivelView({ initialLogs, buses, drivers, currentPr
         currentPrice={currentPrice}
         defaultBusId={busId}
         onSaved={(saved) => {
-          if (saved) router.refresh();
+          if (saved) upsertLog(saved);
           else pendingFuelEntries().then(setPending);
           if (!saved) toast('Guardado localmente.', 'info');
         }}
@@ -250,7 +262,7 @@ export default function CombustivelView({ initialLogs, buses, drivers, currentPr
         drivers={drivers}
         currentPrice={currentPrice}
         editing={editing}
-        onSaved={() => router.refresh()}
+        onSaved={upsertLog}
       />
 
       <ConfirmDialog

@@ -4,6 +4,8 @@ import TopBar from '@/components/TopBar';
 import BottomNav from '@/components/BottomNav';
 import DriverNav from '@/components/DriverNav';
 import OfflineQueueFlusher from '@/components/OfflineQueueFlusher';
+import NavigationProgress from '@/components/NavigationProgress';
+import ConnectionBanner from '@/components/ConnectionBanner';
 import { ToastProvider } from '@/components/ui/Toast';
 import { isDriverRole } from '@/lib/session';
 
@@ -18,7 +20,9 @@ export default async function AppLayout({ children }) {
   return (
     <ToastProvider>
       <div className="min-h-dvh bg-background">
+        <NavigationProgress />
         <TopBar profile={profile} />
+        <ConnectionBanner />
         <OfflineQueueFlusher />
         <main className="mx-auto max-w-md px-4 pb-28 pt-3">{children}</main>
         {driver ? <DriverNav /> : <BottomNav />}

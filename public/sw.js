@@ -10,7 +10,7 @@
 //     deliberately not cached.
 //
 // Bump VERSION on every deploy or clients keep stale assets (§11).
-const VERSION = 'v1';
+const VERSION = 'v2';
 const STATIC_CACHE = `nawafrotas-static-${VERSION}`;
 const SHELL_CACHE = `nawafrotas-shell-${VERSION}`;
 const OFFLINE_URL = '/offline.html';

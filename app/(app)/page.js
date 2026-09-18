@@ -19,11 +19,12 @@ export const metadata = { title: 'Início' };
 export const dynamic = 'force-dynamic';
 
 async function monthSpend(supabase, range, companyId) {
-  const { data } = await supabase.rpc('fleet_fuel_summary', {
+  const { data, error } = await supabase.rpc('fleet_fuel_summary', {
     p_from: range.from,
     p_to: range.to,
     p_company_id: companyId,
   });
+  if (error) throw error;
   return (data || []).reduce(
     (acc, r) => ({
       cost: acc.cost + Number(r.total_cost_kz || 0),
@@ -42,29 +43,36 @@ export default async function DashboardPage() {
   const companyId = companyScope(auth.profile);
   const supabase = createSupabaseAdminClient();
 
+  let issuesQuery = supabase
+    .from('bus_maintenance')
+    .select('id, title, severity, status, reported_at, bus_id, bus:buses!inner(license_plate, company_id)')
+    .in('status', ['open', 'in_progress'])
+    .limit(50);
+  let fillsQuery = supabase
+    .from('bus_fuel_logs')
+    .select('id, bus_id, filled_at, litres, total_cost_kz, bus:buses!inner(license_plate, company_id)')
+    .order('filled_at', { ascending: false })
+    .limit(20);
+  if (companyId) {
+    issuesQuery = issuesQuery.eq('bus.company_id', companyId);
+    fillsQuery = fillsQuery.eq('bus.company_id', companyId);
+  }
+
   const [buses, thisMonth, lastMonth, issuesResult, fillsResult] = await Promise.all([
     listBusStatus(companyId),
     monthSpend(supabase, currentMonthRange(), companyId),
     monthSpend(supabase, previousMonthRange(), companyId),
-    supabase
-      .from('bus_maintenance')
-      .select('id, title, severity, status, reported_at, bus_id, bus:buses!inner(license_plate, company_id)')
-      .in('status', ['open', 'in_progress'])
-      .limit(50),
-    supabase
-      .from('bus_fuel_logs')
-      .select('id, bus_id, filled_at, litres, total_cost_kz, bus:buses!inner(license_plate, company_id)')
-      .order('filled_at', { ascending: false })
-      .limit(20),
+    issuesQuery,
+    fillsQuery,
   ]);
 
-  const scoped = (rows) =>
-    (rows || []).filter((r) => !companyId || r.bus?.company_id === companyId);
+  if (issuesResult.error) throw issuesResult.error;
+  if (fillsResult.error) throw fillsResult.error;
 
   const counts = countByState(buses);
   const onTrip = buses.filter((b) => b.state === 'on_trip');
-  const issues = sortIssues(scoped(issuesResult.data)).slice(0, 5);
-  const fills = scoped(fillsResult.data).slice(0, 5);
+  const issues = sortIssues(issuesResult.data || []).slice(0, 5);
+  const fills = (fillsResult.data || []).slice(0, 5);
   const change = percentChange(thisMonth.cost, lastMonth.cost);
 
   return (

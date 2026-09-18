@@ -1,8 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Wrench, Plus, Calendar, Ban } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import Button from '@/components/ui/Button';
@@ -28,14 +27,16 @@ const BOARDS = [
 ];
 
 export default function ManutencaoView({ initialIssues, buses, canResolve }) {
+  const [issues, setIssues] = useState(initialIssues);
   const [board, setBoard] = useState('open');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [busyId, setBusyId] = useState(null);
-  const router = useRouter();
   const toast = useToast();
 
+  useEffect(() => setIssues(initialIssues), [initialIssues]);
+
   const grouped = useMemo(() => {
-    const sorted = sortIssues(initialIssues);
+    const sorted = sortIssues(issues);
     return {
       open: sorted.filter((i) => OPEN_STATUSES.includes(i.status)),
       // "Agendada" is an open issue with a date attached — a separate column,
@@ -44,7 +45,7 @@ export default function ManutencaoView({ initialIssues, buses, canResolve }) {
       scheduled: sorted.filter((i) => OPEN_STATUSES.includes(i.status) && i.scheduled_for),
       done: sorted.filter((i) => i.status === 'done' || i.status === 'cancelled'),
     };
-  }, [initialIssues]);
+  }, [issues]);
 
   const visible = grouped[board] || [];
 
@@ -59,7 +60,9 @@ export default function ManutencaoView({ initialIssues, buses, canResolve }) {
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error || 'Não foi possível guardar.');
       toast(status === 'done' ? 'Manutenção concluída.' : 'Manutenção em curso.', 'success');
-      router.refresh();
+      setIssues((current) =>
+        current.map((row) => (row.id === issue.id ? { ...row, ...payload.issue } : row))
+      );
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -189,7 +192,7 @@ export default function ManutencaoView({ initialIssues, buses, canResolve }) {
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
         buses={buses}
-        onSaved={() => router.refresh()}
+        onSaved={(saved) => setIssues((current) => [saved, ...current.filter((row) => row.id !== saved.id)])}
       />
     </div>
   );

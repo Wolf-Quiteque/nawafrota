@@ -20,16 +20,18 @@ export default async function NotificacoesPage() {
     .limit(100);
   query = scopeToCompany(query, companyScope(auth.profile));
 
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) throw error;
   const ids = (data || []).map((n) => n.id);
 
-  const { data: reads } = ids.length
+  const { data: reads, error: readsError } = ids.length
     ? await supabase
         .from('fleet_notification_reads')
         .select('notification_id')
         .eq('user_id', auth.user.id)
         .in('notification_id', ids)
     : { data: [] };
+  if (readsError) throw readsError;
 
   const notifications = markReadState(data, (reads || []).map((r) => r.notification_id));
 

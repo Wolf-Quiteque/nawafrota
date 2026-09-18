@@ -22,7 +22,7 @@ import {
   formatNumber,
 } from '@/lib/format';
 
-export default function RelatoriosView({ buses, company, profile }) {
+export default function RelatoriosView({ buses, company, profile, initialReport }) {
   const [period, setPeriod] = useState('this_month');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -38,7 +38,9 @@ export default function RelatoriosView({ buses, company, profile }) {
     return params.toString();
   }, [period, from, to, busId]);
 
-  const { data, loading, error } = useApi(`/api/reports/fuel?${query}`);
+  const { data, loading, error } = useApi(`/api/reports/fuel?${query}`, {
+    initialData: initialReport,
+  });
 
   const exportHref = `/api/reports/export?${query}`;
   const selectedBus = buses.find((b) => b.bus_id === busId);

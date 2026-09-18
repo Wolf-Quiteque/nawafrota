@@ -50,6 +50,8 @@ export default async function BusDetailPage({ params }) {
     listDrivers(companyId),
     fuelPriceAt(new Date().toISOString(), companyId),
   ]);
+  if (fuelResult.error) throw fuelResult.error;
+  if (issuesResult.error) throw issuesResult.error;
 
   return (
     <BusDetailView

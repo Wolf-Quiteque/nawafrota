@@ -157,6 +157,19 @@
   }
 }
 
+@keyframes navigation-progress {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+.navigation-progress {
+  animation: navigation-progress 1.05s ease-in-out infinite;
+}
+
 .skeleton {
   position: relative;
   overflow: hidden;
@@ -224,6 +237,10 @@
   .animate-drop-in,
   .skeleton::after {
     animation: none;
+  }
+
+  .navigation-progress {
+    animation-duration: 2s;
   }
 
   .press-scale {

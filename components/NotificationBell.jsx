@@ -32,7 +32,15 @@ export default function NotificationBell() {
   }, []);
 
   useEffect(() => {
-    load();
+    // Notifications are secondary to the screen the user opened. Starting
+    // them during an idle slice avoids competing with the first fleet request
+    // on slower phones/connections.
+    const idle = window.requestIdleCallback?.(() => load(), { timeout: 1500 });
+    const timer = idle === undefined ? setTimeout(load, 800) : null;
+    return () => {
+      if (idle !== undefined) window.cancelIdleCallback?.(idle);
+      if (timer) clearTimeout(timer);
+    };
   }, [load]);
 
   useEffect(() => {
@@ -40,7 +48,7 @@ export default function NotificationBell() {
 
     // supabase-js is ~35kB and the bell is the only thing on a normal screen
     // that needs it, so it is loaded after the screen has painted.
-    (async () => {
+    const subscribe = async () => {
       const { getSupabaseBrowserClient } = await import('@/lib/supabase-browser');
       if (cancelled) return;
       const supabase = getSupabaseBrowserClient();
@@ -55,10 +63,15 @@ export default function NotificationBell() {
         .subscribe();
 
       channelRef.current = { supabase, channel };
-    })();
+    };
+
+    const idle = window.requestIdleCallback?.(() => subscribe(), { timeout: 2500 });
+    const timer = idle === undefined ? setTimeout(subscribe, 1200) : null;
 
     return () => {
       cancelled = true;
+      if (idle !== undefined) window.cancelIdleCallback?.(idle);
+      if (timer) clearTimeout(timer);
       const held = channelRef.current;
       if (held) held.supabase.removeChannel(held.channel);
     };

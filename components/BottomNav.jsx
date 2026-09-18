@@ -26,6 +26,7 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? 'page' : undefined}
               className="press-scale flex flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5"
             >
               <span

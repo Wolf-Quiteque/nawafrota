@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -58,6 +58,8 @@ export default function BusDetailView({
   currentPrice,
   profile,
 }) {
+  const [fuelRows, setFuelRows] = useState(fuelLogs);
+  const [issueRows, setIssueRows] = useState(issues);
   const [tab, setTab] = useState('resumo');
   const [fuelOpen, setFuelOpen] = useState(false);
   const [maintOpen, setMaintOpen] = useState(false);
@@ -65,25 +67,28 @@ export default function BusDetailView({
   const toast = useToast();
   const router = useRouter();
 
+  useEffect(() => setFuelRows(fuelLogs), [fuelLogs]);
+  useEffect(() => setIssueRows(issues), [issues]);
+
   // Newest first on screen, but the consumption maths needs oldest-first pairs.
-  const enriched = useMemo(() => withConsumption(fuelLogs).reverse(), [fuelLogs]);
-  const avgConsumption = useMemo(() => averageConsumption(fuelLogs), [fuelLogs]);
+  const enriched = useMemo(() => withConsumption(fuelRows).reverse(), [fuelRows]);
+  const avgConsumption = useMemo(() => averageConsumption(fuelRows), [fuelRows]);
 
   const lifetime = useMemo(
     () =>
-      (fuelLogs || []).reduce(
+      (fuelRows || []).reduce(
         (acc, f) => ({
           cost: acc.cost + Number(f.total_cost_kz || 0),
           litres: acc.litres + Number(f.litres || 0),
         }),
         { cost: 0, litres: 0 }
       ),
-    [fuelLogs]
+    [fuelRows]
   );
 
   const monthly = useMemo(() => {
     const byMonth = new Map();
-    for (const f of fuelLogs || []) {
+    for (const f of fuelRows || []) {
       const month = `${String(f.filled_at).slice(0, 7)}-01`;
       byMonth.set(month, (byMonth.get(month) || 0) + Number(f.total_cost_kz || 0));
     }
@@ -91,9 +96,9 @@ export default function BusDetailView({
       .sort((a, b) => a[0].localeCompare(b[0]))
       .slice(-12)
       .map(([month, total_cost_kz]) => ({ month, total_cost_kz }));
-  }, [fuelLogs]);
+  }, [fuelRows]);
 
-  const sortedIssues = useMemo(() => sortIssues(issues), [issues]);
+  const sortedIssues = useMemo(() => sortIssues(issueRows), [issueRows]);
   const openIssues = sortedIssues.filter((i) => OPEN_STATUSES.includes(i.status));
 
   /**
@@ -147,7 +152,9 @@ export default function BusDetailView({
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error || 'Não foi possível guardar.');
       toast('Manutenção concluída.', 'success');
-      router.refresh();
+      setIssueRows((current) =>
+        current.map((row) => (row.id === issue.id ? { ...row, ...payload.issue } : row))
+      );
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -164,7 +171,7 @@ export default function BusDetailView({
       <PrintHeader
         company={company}
         title={`Histórico de combustível — ${bus.license_plate}`}
-        periodLabel={`${fuelLogs.length} abastecimentos registados`}
+        periodLabel={`${fuelRows.length} abastecimentos registados`}
         generatedBy={profile}
       />
 
@@ -435,14 +442,23 @@ export default function BusDetailView({
         drivers={drivers}
         currentPrice={currentPrice}
         defaultBusId={bus.bus_id}
-        onSaved={() => router.refresh()}
+        onSaved={(saved) => {
+          if (!saved) return;
+          setFuelRows((current) =>
+            [saved, ...current.filter((row) => row.id !== saved.id)].sort(
+              (a, b) => new Date(b.filled_at).getTime() - new Date(a.filled_at).getTime()
+            )
+          );
+        }}
       />
       <MaintenanceSheet
         open={maintOpen}
         onClose={() => setMaintOpen(false)}
         buses={[bus]}
         defaultBusId={bus.bus_id}
-        onSaved={() => router.refresh()}
+        onSaved={(saved) =>
+          setIssueRows((current) => [saved, ...current.filter((row) => row.id !== saved.id)])
+        }
       />
     </div>
   );

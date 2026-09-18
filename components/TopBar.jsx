@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogOut, Settings, Bus } from 'lucide-react';
+import { LogOut, Settings, Bus, RefreshCw } from 'lucide-react';
 import Sheet from '@/components/ui/Sheet';
 import Button from '@/components/ui/Button';
 import NotificationBell from '@/components/NotificationBell';
@@ -18,6 +18,7 @@ const ROLE_LABELS = {
 export default function TopBar({ profile }) {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -44,6 +45,15 @@ export default function TopBar({ profile }) {
           <span className="text-[15px] font-bold tracking-tight">Nawa-frotas</span>
         </Link>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => startRefresh(() => router.refresh())}
+            disabled={refreshing}
+            className="press-scale flex h-9 w-9 items-center justify-center rounded-full bg-muted text-foreground disabled:opacity-60"
+            aria-label={refreshing ? 'A atualizar dados' : 'Atualizar dados'}
+          >
+            <RefreshCw size={17} className={refreshing ? 'animate-spin' : ''} />
+          </button>
           <NotificationBell />
           <button
             onClick={() => setOpen(true)}

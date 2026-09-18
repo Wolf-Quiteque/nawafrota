@@ -15,23 +15,25 @@ export default async function ManutencaoPage() {
   const companyId = companyScope(auth.profile);
   const supabase = createSupabaseAdminClient();
 
+  let issuesQuery = supabase
+    .from('bus_maintenance')
+    .select(
+      'id, bus_id, title, description, severity, status, reported_at, scheduled_for, ' +
+        'completed_at, cost_kz, workshop, takes_bus_offline, ' +
+        'bus:buses!inner(license_plate, company_id, is_active), ' +
+        'reporter:profiles!bus_maintenance_reported_by_fkey(first_name, last_name)'
+    )
+    .order('reported_at', { ascending: false })
+    .limit(200);
+  if (companyId) issuesQuery = issuesQuery.eq('bus.company_id', companyId);
+
   const [buses, issuesResult] = await Promise.all([
     listBusStatus(companyId),
-    supabase
-      .from('bus_maintenance')
-      .select(
-        'id, bus_id, title, description, severity, status, reported_at, scheduled_for, ' +
-          'completed_at, cost_kz, workshop, takes_bus_offline, ' +
-          'bus:buses!inner(license_plate, company_id, is_active), ' +
-          'reporter:profiles!bus_maintenance_reported_by_fkey(first_name, last_name)'
-      )
-      .order('reported_at', { ascending: false })
-      .limit(200),
+    issuesQuery,
   ]);
+  if (issuesResult.error) throw issuesResult.error;
 
-  const issues = (issuesResult.data || []).filter(
-    (row) => !companyId || row.bus?.company_id === companyId
-  );
+  const issues = issuesResult.data || [];
 
   return (
     <ManutencaoView
